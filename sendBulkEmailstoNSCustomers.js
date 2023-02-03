@@ -9,24 +9,25 @@
     
         log.audit("Bulk Emails SuiteScript Triggered");
         const senderId = 8732;
-        const currentUserId = runtime.getCurrentUser().id;
-        log.audit("Current user Id : " + currentUserId);
-      
+              
         var scriptObj = runtime.getCurrentScript();
-      
-        log.audit('Script parameter of Subject: ' + 
-        scriptObj.getParameter({name: 'custscript_nuagesync_emailsubject'}));
-        var emailSubject = scriptObj.getParameter({name: 'custscript_nuagesync_emailsubject'});	
+
         
-        log.audit('Script parameter of Body: ' + 
-        scriptObj.getParameter({name:'custscript_nuagesync_emailbody'}));
-         var emailBody = scriptObj.getParameter({name:'custscript_nuagesync_emailbody'});
-      
-        log.audit('Script parameter of File ID: ' + 
-        scriptObj.getParameter({name: 'custscript_nuagesync_attachmentid'}));
+        var summaryReceiverEmail = scriptObj.getParameter({name: 'custscript_nuagesync_summaryreceivemail'});
+        var summaryCCEmail = scriptObj.getParameter({name: 'custscript_nuagesync_summaryccemails'});      
+        var emailSubject = scriptObj.getParameter({name: 'custscript_nuagesync_emailsubject'});
+        var emailBody = scriptObj.getParameter({name:'custscript_nuagesync_emailbody'});
         var attachmentId = scriptObj.getParameter({name: 'custscript_nuagesync_attachmentid'});
-      
+        
+
+        log.audit('Script parameter of Summary Receiver Email: ' + summaryReceiverEmail);
+        log.audit('Script parameter of Summary Receiver Email: ' + summaryCCEmail);
+        log.audit('Script parameter of Summary Receiver Email: ' + emailSubject);
+        log.audit('Script parameter of Summary Receiver Email: ' + emailBody);
+        log.audit('Script parameter of Summary Receiver Email: ' + attachmentId);
+
         var mySearch=search.load({id:"customsearch_customers_bulkemails_nuage"});
+
         var results = mySearch.run().getRange({
         start: 0,
         end: 1000
@@ -79,19 +80,7 @@
             
         }
 
-        var emailHtmlBody = `Hi,`
-        emailHtmlBody += "\n"
-        emailHtmlBody += `Below is the summary of Bulk Emails Trigger`
-        emailHtmlBody += "\n"
-        emailHtmlBody += `Total Customers: ${searchResultCount}`
-        emailHtmlBody += "\n"
-        emailHtmlBody += `Emails Sent: ${emailsuccesfullcount}`
-        emailHtmlBody += "\n"
-        emailHtmlBody += `Emails Failed: ${emailfailedcount}`
-        emailHtmlBody += "\n"
-        emailHtmlBody += `Missing emails Customers list [${missingEmailsCustIds.join("','")}]`
-        emailHtmlBody += "\n"
-        emailHtmlBody += `<html>
+        var emailHtmlBody = `<html>
         <head>
             <meta charset="utf-8"><title></title>
             <style>table, th, td {
@@ -99,8 +88,21 @@
               }
               </style>
         </head>
-        <body>
-            <table border: 1px solid black>
+        <body>`
+        
+        emailHtmlBody += `<p>Hi,<br>`
+
+        emailHtmlBody += `Below is the summary of Bulk Emails Trigger<br>`
+
+        emailHtmlBody += `Total Customers: ${searchResultCount}<br>`
+
+        emailHtmlBody += `Emails Sent: ${emailsuccesfullcount}<br>`
+
+        emailHtmlBody += `Emails Failed: ${emailfailedcount}<br>`
+
+        emailHtmlBody += `Missing emails Customer IDs list ['${missingEmailsCustIds.join("','")}']<br>`
+        
+        emailHtmlBody += `<table border: 1px solid black>
                 <tr>
                     <th>Customers Missing Emails</th>
                 </tr>
@@ -114,10 +116,11 @@
 
         
 
-        try {
+        try {   
             email.send({
                 author: senderId,
-                recipients: ['addie@nuagesync.com'],
+                recipients: summaryReceiverEmail,
+                cc: [summaryCCEmail] || '',
                 subject: `Bulk Emails Summary: Total-${searchResultCount}, Sent-${emailsuccesfullcount}, Failed-${emailfailedcount}`,
                 body: emailHtmlBody      
             });
