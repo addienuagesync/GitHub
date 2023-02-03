@@ -22,10 +22,23 @@
 			}
 
 			tempData[i].paymentArr = cashSalesObj.paymentArr.concat(cashRefundObj.paymentArr)
+			tempData[i].missingGERefsArr = cashSalesObj.missingGERefsArr.concat(cashRefundObj.missingGERefsArr)
+
 			var missingRecords = []
+			var errorMsg = ''
+
+			if(cashSalesObj.GERefNumbersArr.length > 0) {
+				errorMsg = 'Missing Order records ' +  cashSalesObj.GERefNumbersArr + ' '
+			}
+
+
+			if(cashRefundObj.GERefNumbersArr.length > 0) {
+				errorMsg = errorMsg + 'Missing Refund records ' +  cashRefundObj.GERefNumbersArr 
+			}
+
 			missingRecords.push({
-				code : 'MISSING_TRANSACTION',
-				message : 'Missing transactions' +  cashSalesObj.GERefNumbersArr.concat(cashRefundObj.GERefNumbersArr)
+				code : 'MISSING_TRANSACTIONS',
+				message : errorMsg
 			})
 			
 			
@@ -97,6 +110,7 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 		);
 
 	var paymentArr = []
+	var tempGERefNumbersArr = GERefNumbersArr
 
 	nlapiLogExecution('audit','Search Result Length ' + nsRecordType + ' :',JSON.stringify(GERerRecordsSearch.length));
 
@@ -109,37 +123,45 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 		x.nsDocNum = GERerRecordsSearch[p].getValue('tranid')
 		
 		paymentArr.push(x)
-		GERefNumbersArr.splice(GERefNumbersArr.indexOf(refNum),1)
+
+		var tempGERefNumbersArr = tempGERefNumbersArr.filter(function (GERefToRemove) {
+			return GERefToRemove !== refNum;
+		});
+
+		
+		//GERefNumbersArr.splice(GERefNumbersArr.indexOf(refNum),1)
 		
 		//nlapiLogExecution('audit','Deleted GERefNumberArr Length ('+nsRecordType+') :',JSON.stringify(GERefNumbersArr.length));
 	}
 
-	nlapiLogExecution('audit','Missing GERefNumberArr ('+nsRecordType+') :',JSON.stringify(GERefNumbersArr));
+	nlapiLogExecution('audit','Missing GERefNumberArr ('+nsRecordType+') :',JSON.stringify(tempGERefNumbersArr));
 
 	var missingGERefsArr =  []
 	var missingGERefsErrorArr = []
 	
-	if(GERefNumbersArr.length > 0) {
+	if(tempGERefNumbersArr.length > 0) {
 		
-		for(var q = 0; q<GERefNumbersArr.length;q++) {
+		for(var q = 0; q<tempGERefNumbersArr.length;q++) {
 
 			
-			missingGERefsArr.push(GERefRecordsObj[GERefNumbersArr[q]])
+			missingGERefsArr.push(GERefRecordsObj[tempGERefNumbersArr[q]])
 
+			/*
 			missingGERefsErrorArr.push({
 				code : 'MISSING_TRANSACTION',
 				message : 'Missing this transaction ' +  GERefNumbersArr[q]
 			})
+			*/
 			
 		}
 		
 		nlapiLogExecution('audit','missingGERefsArr ('+nsRecordType+') :',JSON.stringify(missingGERefsArr));
-		nlapiLogExecution('audit','missingGERefsErrorArr ('+nsRecordType+') :',JSON.stringify(missingGERefsErrorArr));
+		//nlapiLogExecution('audit','missingGERefsErrorArr ('+nsRecordType+') :',JSON.stringify(missingGERefsErrorArr));
 	}
 
 	var outputObj = {}
 	outputObj.paymentArr = paymentArr
-	outputObj.GERefNumbersArr = GERefNumbersArr
+	outputObj.GERefNumbersArr = tempGERefNumbersArr
 	outputObj.missingGERefsArr = missingGERefsArr
 	outputObj.missingGERefsErrorArr = missingGERefsErrorArr
 
