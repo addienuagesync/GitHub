@@ -9,6 +9,8 @@
     
         log.audit("Bulk Emails SuiteScript Triggered");
         const senderId = 8732;
+        const currentUserId = runtime.getCurrentUser().id;
+        log.audit("Current user Id : " + currentUserId);
       
         var scriptObj = runtime.getCurrentScript();
       
@@ -34,8 +36,11 @@
             id: attachmentId
         });
 
+        var searchResultCount = results.length
         var emailsuccesfullcount = 0;
         var emailfailedcount = 0;
+        var missingEmailsCustIds = [];
+        var missingEmailsCustDetails = [];
     
         for(var i=0;i<results.length;i++) {
             var custName = results[i].getValue({
@@ -67,12 +72,26 @@
 
             } catch(e) {
             log.error("Uh oh. Error in the try/catch! - " + e.name, e.message);
-            emailfailedcount++
+            emailfailedcount++;
+            missingEmailsCustDetails.push({"custId": custId, "custName": custName});
+            missingEmailsCustIds.push(custId);
             }
             
         }
 
-        var emailHtmlBody = [`<html>
+        var emailHtmlBody = `Hi,`
+        emailHtmlBody += "\n"
+        emailHtmlBody += `Below is the summary of Bulk Emails Trigger`
+        emailHtmlBody += "\n"
+        emailHtmlBody += `Total Customers: ${searchResultCount}`
+        emailHtmlBody += "\n"
+        emailHtmlBody += `Emails Sent: ${emailsuccesfullcount}`
+        emailHtmlBody += "\n"
+        emailHtmlBody += `Emails Failed: ${emailfailedcount}`
+        emailHtmlBody += "\n"
+        emailHtmlBody += `Missing emails Customers list [${missingEmailsCustIds.join("','")}]`
+        emailHtmlBody += "\n"
+        emailHtmlBody += `<html>
         <head>
             <meta charset="utf-8"><title></title>
             <style>table, th, td {
@@ -85,27 +104,22 @@
                 <tr>
                     <th>Customers Missing Emails</th>
                 </tr>
-                <tr>
-                    <td border: 1px solid black>
-                        <a href='https://5060840.app.netsuite.com/app/common/entity/custjob.nl?id=1234'>Customer 1</a></td>
-                      </tr>
-              <tr><td>
-                        <a href='https://5060840.app.netsuite.com/app/common/entity/custjob.nl?id=1234'>Customer 2</a></td></tr>
-              <tr><td>
-                        <a href='https://5060840.app.netsuite.com/app/common/entity/custjob.nl?id=1234'>Customer 3</a>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>`]
+                <tr><td>`
 
+        for(j=0;j<missingEmailsCustDetails.length;j++) {
+            emailHtmlBody += `<a href='https://5060840.app.netsuite.com/app/common/entity/custjob.nl?id=${missingEmailsCustDetails[j].custId}'>${missingEmailsCustDetails[j].custName}</a><br>`
+        }
+                  
+        emailHtmlBody += `</td></tr></table></body></html>`
+
+        
 
         try {
             email.send({
                 author: senderId,
                 recipients: ['addie@nuagesync.com'],
-                subject: 'testsubject',
-                body: emailHtmlBody[0]      
+                subject: `Bulk Emails Summary: Total-${searchResultCount}, Sent-${emailsuccesfullcount}, Failed-${emailfailedcount}`,
+                body: emailHtmlBody      
             });
             log.audit("Email sent to cusotmer Addie with email address addie@nuagesync.com")
             } catch(e) {
