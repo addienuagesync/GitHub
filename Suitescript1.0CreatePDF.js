@@ -56,7 +56,7 @@ function myPreSendHook(options) {
        nlapiLogExecution('audit','FileName',JSON.stringify(response.fileName));
  
      } catch(ex) {
-         log.error('Error while saving file recordType'+recordType+'| recordId# '+recordId, ex.code)
+      nlapiLogExecution('Error','Error while saving file recordType'+recordType+'| recordId# '+recordId, ex.code)
          response.success = false
          response.error = "Error while saving file"+ex.name + ' | '+ ex.message
  
