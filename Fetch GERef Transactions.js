@@ -3,7 +3,7 @@
  * @param  {Object} options The data sent to the hook.  See SampleOptionsData.json for format
  * @return {Array}         Array containing the data sent to the mapper
  */
- var fetchGERefTransactionsPreMapHook = function(options){
+var fetchGERefTransactionsPreMapHook = function(options){
 	
 	//The array that will be returned from this hook to be processed by the mappings
 	var response = [];
@@ -119,9 +119,13 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 		var refNum =''
 		refNum = GERerRecordsSearch[p].getValue('otherrefnum')
 		var x = GERefRecordsObj[refNum]
+
+		nlapiLogExecution('audit','GERefObjs ' + nsRecordType + ' :',JSON.stringify(x));
 		
 		x.nsDocNum = GERerRecordsSearch[p].getValue('tranid')
 		
+		nlapiLogExecution('audit','GERefObjs After nsDocNum ' + nsRecordType + ' :',JSON.stringify(x));
+
 		paymentArr.push(x)
 
 		var tempGERefNumbersArr = tempGERefNumbersArr.filter(function (GERefToRemove) {
@@ -138,12 +142,20 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 
 	var missingGERefsArr =  []
 	var missingGERefsErrorArr = []
+
+	
+	function removeDuplicates(tempGERefNumbersArr) {
+        return tempGERefNumbersArr.filter((item, 
+            index) => tempGERefNumbersArr.indexOf(item) === index);
+			
+    }
+
+	nlapiLogExecution('audit','Missing GERefNumberArr After Removing Duplicates ('+nsRecordType+') :',JSON.stringify(tempGERefNumbersArr));
 	
 	if(tempGERefNumbersArr.length > 0) {
 		
 		for(var q = 0; q<tempGERefNumbersArr.length;q++) {
 
-			
 			missingGERefsArr.push(GERefRecordsObj[tempGERefNumbersArr[q]])
 
 			/*
