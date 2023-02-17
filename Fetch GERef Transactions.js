@@ -12,11 +12,12 @@ var fetchGERefTransactionsPreMapHook = function(options){
 	if(tempData.length > 0) {
     	for (var i = 0; i < tempData.length; i++) {
 
-
+			//Fetch the Cash Sales data
 			if(tempData[i].newGERefArr_cahSales.length > 0) {
 				var cashSalesObj = fetchNSRecordsData(tempData[i].cashsales_arr,tempData[i].newGERefArr_cahSales,tempData[i].cashSalesGERefRecords,'cashsale','CashSale')
 			} 
-		
+			
+			//Fetch the Cash Refund Data
 			if(tempData[i].newGERefArr_cahRefunds.length > 0) {
 				var cashRefundObj = fetchNSRecordsData(tempData[i].cashrefunds_arr,tempData[i].newGERefArr_cahRefunds,tempData[i].cashRefundsGERefRecords,'cashrefund','CashRfnd')
 			}
@@ -24,13 +25,14 @@ var fetchGERefTransactionsPreMapHook = function(options){
 			tempData[i].paymentArr = cashSalesObj.paymentArr.concat(cashRefundObj.paymentArr)
 			tempData[i].missingGERefsArr = cashSalesObj.missingGERefsArr.concat(cashRefundObj.missingGERefsArr)
 
+			
 			var missingRecords = []
 			var errorMsg = ''
-
+			
+			/*
 			if(cashSalesObj.GERefNumbersArr.length > 0) {
 				errorMsg = 'Missing Order records ' +  cashSalesObj.GERefNumbersArr + ' '
 			}
-
 
 			if(cashRefundObj.GERefNumbersArr.length > 0) {
 				errorMsg = errorMsg + 'Missing Refund records ' +  cashRefundObj.GERefNumbersArr 
@@ -40,7 +42,7 @@ var fetchGERefTransactionsPreMapHook = function(options){
 				code : 'MISSING_TRANSACTIONS',
 				message : errorMsg
 			})
-			
+			*/
 			
 		response.push({
 			data : JSON.parse(JSON.stringify(tempData[i])),
@@ -114,17 +116,18 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 
 	nlapiLogExecution('audit','Search Result Length ' + nsRecordType + ' :',JSON.stringify(GERerRecordsSearch.length));
 
-
+/*** To add NS Document number to the Data and remove the them from the tempGERefNumbersArr 
+whenever a NS doc number is found for a GERef Number ***/
 	for(var p=GERerRecordsSearch.length-1; p >= 0 ; p--) {
 		var refNum =''
 		refNum = GERerRecordsSearch[p].getValue('otherrefnum')
 		var x = GERefRecordsObj[refNum]
 
-		nlapiLogExecution('audit','GERefObjs ' + nsRecordType + ' :',JSON.stringify(x));
+		//nlapiLogExecution('audit','GERefObjs ' + nsRecordType + ' :',JSON.stringify(x));
 		
 		x.nsDocNum = GERerRecordsSearch[p].getValue('tranid')
 		
-		nlapiLogExecution('audit','GERefObjs After nsDocNum ' + nsRecordType + ' :',JSON.stringify(x));
+		//nlapiLogExecution('audit','GERefObjs After nsDocNum ' + nsRecordType + ' :',JSON.stringify(x));
 
 		paymentArr.push(x)
 
@@ -142,21 +145,24 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 
 	var missingGERefsArr =  []
 	var missingGERefsErrorArr = []
-
 	
-	function removeDuplicates(tempGERefNumbersArr) {
-        return tempGERefNumbersArr.filter((item, 
-            index) => tempGERefNumbersArr.indexOf(item) === index);
-			
-    }
+	//var tempUniqueGERefNumbersArr = removeDuplicates(tempGERefNumbersArr)
 
-	nlapiLogExecution('audit','Missing GERefNumberArr After Removing Duplicates ('+nsRecordType+') :',JSON.stringify(tempGERefNumbersArr));
-	
+	//Generate Missing Records Array
 	if(tempGERefNumbersArr.length > 0) {
-		
-		for(var q = 0; q<tempGERefNumbersArr.length;q++) {
+	
+		var tempUniqueGERefNumbersArr = []
 
-			missingGERefsArr.push(GERefRecordsObj[tempGERefNumbersArr[q]])
+		for(var r=0; r<tempGERefNumbersArr.length;r++) {
+			if (tempUniqueGERefNumbersArr.indexOf(tempGERefNumbersArr[r]) == -1) {
+				tempUniqueGERefNumbersArr.push(tempGERefNumbersArr[r]);
+			}
+		}
+		nlapiLogExecution('audit','Missing GERefNumberArr After Removing Duplicates ('+nsRecordType+') :',JSON.stringify(tempUniqueGERefNumbersArr));
+
+		for(var q = 0; q<tempUniqueGERefNumbersArr.length;q++) {
+
+			missingGERefsArr.push(GERefRecordsObj[tempUniqueGERefNumbersArr[q]])
 
 			/*
 			missingGERefsErrorArr.push({
@@ -173,9 +179,14 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 
 	var outputObj = {}
 	outputObj.paymentArr = paymentArr
-	outputObj.GERefNumbersArr = tempGERefNumbersArr
+	outputObj.GERefNumbersArr = tempUniqueGERefNumbersArr
 	outputObj.missingGERefsArr = missingGERefsArr
 	outputObj.missingGERefsErrorArr = missingGERefsErrorArr
 
 	return outputObj
 }
+
+/*
+var removeDuplicates = function(tempGERefNumbersArr) {
+	return tempGERefNumbersArr.filter((item, index) => tempGERefNumbersArr.indexOf(item) === index);
+}*/
