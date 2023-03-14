@@ -27,7 +27,7 @@ var fetchGERefTransactionsPreMapHook = function(options){
 
 			
 			var missingRecords = []
-			var errorMsg = ''
+			//var errorMsg = ''
 			
 			/*
 			if(cashSalesObj.GERefNumbersArr.length > 0) {
@@ -92,44 +92,58 @@ var fetchNSRecordsData = function(inputArr,GERefNumbersArr,GERefRecordsObj,nsRec
 
 	filter1[0] = filter1[0].replace('$$$',newGERefArr)
 
-	nlapiLogExecution('audit','Premap ' + nsRecordType + ' Search Filters :',JSON.stringify(newGERefArr));
-	nlapiLogExecution('audit',nsRecordType + ' Array Length :',JSON.stringify(GERefNumbersArr.length));
-
-	var GERerRecordsSearch = nlapiSearchRecord(nsRecordType,null,
-		[
+	var filters = [
 		["type","anyof",nsFilterType], 
 		"AND", 
 		filter1,
 		"AND", 
 		["mainline","is","T"]
-		], 
-		[
-		new nlobjSearchColumn("type"), 
-		new nlobjSearchColumn("tranid"), 
-		new nlobjSearchColumn("otherrefnum"), 
-		new nlobjSearchColumn("internalid")
 		]
-		);
+	var columns = []
+
+	
+	columns[0] = new nlobjSearchColumn("type"), 
+	columns[1] = new nlobjSearchColumn("tranid"), 
+	columns[2] = new nlobjSearchColumn("otherrefnum"), 
+	columns[3] = new nlobjSearchColumn("internalid"),
+	columns[4] = new nlobjSearchColumn("tranid","depositTransaction",null), 
+	columns[5] = new nlobjSearchColumn("internalid","depositTransaction",null),
+	columns[6] = new nlobjSearchColumn("type","depositTransaction",null),
+	columns[7] = new nlobjSearchColumn("internalid")
+
+	//nlapiLogExecution('audit','Premap ' + nsRecordType + ' Search Filters :',JSON.stringify(newGERefArr));
+	//nlapiLogExecution('audit',nsRecordType + ' Array Length :',JSON.stringify(GERefNumbersArr.length));
+
+	var GERerRecordsSearch = nlapiSearchRecord(nsRecordType,null,filters,columns);
 
 	var paymentArr = []
 	var tempGERefNumbersArr = GERefNumbersArr
+	var depositedRecordsArr = []
 
-	nlapiLogExecution('audit','Search Result Length ' + nsRecordType + ' :',JSON.stringify(GERerRecordsSearch.length));
+	//nlapiLogExecution('audit','Search Result Length ' + nsRecordType + ' :',JSON.stringify(GERerRecordsSearch.length));
 
 /*** To add NS Document number to the Data and remove the them from the tempGERefNumbersArr 
 whenever a NS doc number is found for a GERef Number ***/
 	for(var p=GERerRecordsSearch.length-1; p >= 0 ; p--) {
 		var refNum =''
-		refNum = GERerRecordsSearch[p].getValue('otherrefnum')
+		refNum = GERerRecordsSearch[p].getValue(columns[2])
 		var x = GERefRecordsObj[refNum]
+		var depositedRecord = GERerRecordsSearch[p].getValue(columns[5])
 
 		//nlapiLogExecution('audit','GERefObjs ' + nsRecordType + ' :',JSON.stringify(x));
 		
-		x.nsDocNum = GERerRecordsSearch[p].getValue('tranid')
+		x.nsDocNum = GERerRecordsSearch[p].getValue(columns[1])
+		x.nsDocID = GERerRecordsSearch[p].getValue(columns[7])
 		
 		//nlapiLogExecution('audit','GERefObjs After nsDocNum ' + nsRecordType + ' :',JSON.stringify(x));
-
-		paymentArr.push(x)
+		if(!(depositedRecord && refNum)) {
+			paymentArr.push(x)
+		} else {
+			nlapiLogExecution('audit','depositedRecord ' + nsRecordType + ' :',JSON.stringify(depositedRecord));
+			depositedRecordsArr.push(refNum)
+			x.recordStatus = 'Deposited'
+			x.depositNumber = depositedRecord
+		}
 
 		var tempGERefNumbersArr = tempGERefNumbersArr.filter(function (GERefToRemove) {
 			return GERefToRemove !== refNum;
@@ -141,7 +155,7 @@ whenever a NS doc number is found for a GERef Number ***/
 		//nlapiLogExecution('audit','Deleted GERefNumberArr Length ('+nsRecordType+') :',JSON.stringify(GERefNumbersArr.length));
 	}
 
-	nlapiLogExecution('audit','Missing GERefNumberArr ('+nsRecordType+') :',JSON.stringify(tempGERefNumbersArr));
+	//nlapiLogExecution('audit','Missing GERefNumberArr ('+nsRecordType+') :',JSON.stringify(tempGERefNumbersArr));
 
 	var missingGERefsArr =  []
 	var missingGERefsErrorArr = []
@@ -158,7 +172,7 @@ whenever a NS doc number is found for a GERef Number ***/
 				tempUniqueGERefNumbersArr.push(tempGERefNumbersArr[r]);
 			}
 		}
-		nlapiLogExecution('audit','Missing GERefNumberArr After Removing Duplicates ('+nsRecordType+') :',JSON.stringify(tempUniqueGERefNumbersArr));
+		//nlapiLogExecution('audit','Missing GERefNumberArr After Removing Duplicates ('+nsRecordType+') :',JSON.stringify(tempUniqueGERefNumbersArr));
 
 		for(var q = 0; q<tempUniqueGERefNumbersArr.length;q++) {
 
@@ -173,7 +187,37 @@ whenever a NS doc number is found for a GERef Number ***/
 			
 		}
 		
-		nlapiLogExecution('audit','missingGERefsArr ('+nsRecordType+') :',JSON.stringify(missingGERefsArr));
+		//nlapiLogExecution('audit','missingGERefsArr ('+nsRecordType+') :',JSON.stringify(missingGERefsArr));
+		//nlapiLogExecution('audit','missingGERefsErrorArr ('+nsRecordType+') :',JSON.stringify(missingGERefsErrorArr));
+	}
+
+	//Generate Missing Records Array
+	if(depositedRecordsArr.length > 0) {
+	
+		var tempUniqueDepositedRecordsArr = []
+
+		for(var s=0; s<depositedRecordsArr.length;s++) {
+			if (tempUniqueDepositedRecordsArr.indexOf(depositedRecordsArr[s]) == -1) {
+				tempUniqueDepositedRecordsArr.push(depositedRecordsArr[s]);
+			}
+		}
+		//nlapiLogExecution('audit','Missing GERefNumberArr After Removing Duplicates ('+nsRecordType+') :',JSON.stringify(tempUniqueGERefNumbersArr));
+
+		for(var t = 0; t<tempUniqueDepositedRecordsArr.length;t++) {
+
+			//GERefRecordsObj[tempUniqueDepositedRecordsArr[t]].
+			missingGERefsArr.push(GERefRecordsObj[tempUniqueDepositedRecordsArr[t]])
+
+			/*
+			missingGERefsErrorArr.push({
+				code : 'MISSING_TRANSACTION',
+				message : 'Missing this transaction ' +  GERefNumbersArr[q]
+			})
+			*/
+			
+		}
+		
+		//nlapiLogExecution('audit','missingGERefsArr ('+nsRecordType+') :',JSON.stringify(missingGERefsArr));
 		//nlapiLogExecution('audit','missingGERefsErrorArr ('+nsRecordType+') :',JSON.stringify(missingGERefsErrorArr));
 	}
 
